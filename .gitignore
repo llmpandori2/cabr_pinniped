@@ -2,6 +2,9 @@
 .Rhistory
 .Rapp.history
 
+# data folder + assoc files
+/data
+
 # Session Data files
 .RData
 
