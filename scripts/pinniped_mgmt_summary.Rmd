@@ -1,0 +1,185 @@
+---
+title: "CABR Pinniped Monitoring Management Summary"
+author: "L. Pandori"
+date: "12/20/2021"
+output: html_document
+---
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+##### load packages #####
+
+library(gt)        # nice tables
+library(viridis)   # color palette
+library(lubridate) # dates/times
+library(readxl)    # read excel files
+library(janitor)   # clean data
+library(tidyverse) # life
+
+###### set themes #####
+ll_theme <- theme_bw() + theme(text = element_text(size = 12),
+                                    # add more space between panels
+                                    panel.spacing = unit(1, 'lines'),
+                                    # no background to wrap panels
+                                    strip.background = element_blank(),
+                                    strip.text = element_text(size = 12, 
+                                                              hjust = 0),
+                                    # panel labels outside x axis labels
+                                    strip.placement = 'outside',
+                                    # adjust x axis labels
+                                    axis.text.y = element_text(size = 12),
+                                    axis.text.x = element_text(size = 12, 
+                                                               angle = 45, 
+                                                               hjust = 1))
+```
+
+### Introduction
+Cabrillo National Monument (CABR) is a unit of the National Park System located at the tip of Point Loma in San Diego, CA. Despite its small footprint (160 terrestrial acres), CABR attracts nearly one million visitors each year, 380,000 of which visited the coastal area of the park in 2020. Further, the c. 2.5 km stretch of shoreline along the Coastal Trail and rocky intertidal areas of the park are visited by both humans and pinnipeds (seals and sea lions), leading to potential conflict. Preliminary observations show an averatge of 25 adult seals and 8 pups were consistently observed in the Sea Cove area. Due to its value as both a habitat refuge and public resource, it is critical to monitor use patterns by pinnipeds and visitors at Cabrillo National Monument.
+
+### Objectives
+Monitoring of pinnipeds will provide estimates of pinniped use and activities at three sites at Cabrillo National Monument. Specific monitoring objectives of the CABR pinniped monitoring program are to: 
+- Estimate juvenile and adult pinniped abundance 
+- Determine haul-out site and use preferences of pinnipeds
+- Determine if tide level or visitation affect the abundance of pinnipeds
+
+### Methods Overview
+California sea lions (Zalophus californianus) and harbor seals (Phoca vitulina) are the focal species of this sampling due to their high abundances and frequent haul-out behavior along southern California shores (Antonelis & Fiscus 1980). Volunteers in Parks (VIPs) conduct 10 minute observations of the numbers of seals and sea lions visible from three overlooks along the coastal area of the park (Zone 1, Spur Trail and Lot 3 overlooks). After conducting observations of pinnipeds, volunteers conduct 10 minute observations of the number of humans in the intertidal area. They record the time, estimated percent cloud cover, and subjective wind level (on a scale of 0-3) during surveys. The time of survey events is used to get the tide level, air temperature and water temperature from the National Oceanographic and Atmospheric Administration (NOAA) station at Scripps Pier in La Jolla. 
+
+### Preliminary Results
+
+#### Data collection
+Pinniped monitoring data was collected June - December 2021.
+NOAA weather data only available for dates June - September 2021.
+Tide level predictions available for all survey dates. 
+
+```{r data availability table, echo = FALSE, message = FALSE, warning = FALSE}
+
+# read in pinniped data
+pin <- read_csv('../data/pinniped_summary.csv')
+
+# make table by months
+pin %>%
+  filter(year(dtime) == 2021) %>%
+  # get unique combos of survey date, sst, temp and predicted tide lvl
+  select(dtime:predicted_ft) %>%
+  distinct() %>%
+  # get presence by month x year combo
+  mutate(month_yr = floor_date(dtime, unit = 'month')) %>%
+  group_by(month_yr) %>%
+  summarize(`Pinniped observations` = 'Yes',
+            `Air/sea temperature` = if_else(is.na(sio_air_temp), 'No', 'Yes'),
+            `Tide level` = if_else(is.na(predicted_ft), 'No', 'Yes')) %>%
+  distinct() %>%
+  ungroup() %>%
+  mutate(month_yr = substr(month_yr, 1,7)) %>%
+  rename(`Year-Month` = month_yr) %>%
+  gt()
+
+```
+
+#### Only harbor seals occupy the intertidal zone
+During the 20 surveys, No sea lions (adults or pups) were observed in the intertidal zone. One sea lion was observed swimming. No harbor seal pups were observed in the intertidal zone during the survey period (June - December 2021). Due to this finding, analyses that follow consider only adult harbor seals. 
+
+```{r totals of observations, echo = FALSE, message = FALSE, warning = FALSE}
+
+pin %>%
+  select(vista:humans) %>%
+  pivot_longer(., cols = int_seal_adult:humans, names_to = 'obs_type') %>%
+  group_by(vista, obs_type) %>%
+  summarize(n = sum(value)) %>%
+  # nice names
+  ungroup() %>%
+  mutate(obs_type = case_when(obs_type == 'humans' ~ 'Visitors',
+                              obs_type == 'int_lion_adult' ~ 
+                                'Intertidal Sea Lion Adult',
+                              obs_type == 'int_lion_pup' ~ 
+                                'Intertidal Sea Lion Pup',
+                              obs_type == 'int_seal_adult' ~ 
+                                'Intertidal Seal Adult',
+                              obs_type == 'int_seal_pup' ~ 'Interitdal Seal Pup',
+                              obs_type == 'swim_lion' ~ 'Swimming Sea Lion',
+                              obs_type == 'swim_seal' ~ 'Swimming Seal'),
+         vista = case_when(vista == 'lot3' ~ 'Lot 3',
+                           vista == 'spur' ~ 'Spur Trail',
+                           vista == 'zone1' ~ 'Zone 1')) %>%
+  rename(Vista = vista, `Observation type` = obs_type, Count = n) %>%
+  gt() %>%
+  tab_header(title = 'Observation Totals by Vista & Category') %>%
+  data_color(
+    columns = Count,
+    colors = scales::col_numeric(
+      palette = c('white', 'orange'),
+      domain = c(0, 200)
+    )
+  )
+  
+
+```
+
+#### Harbor seal abundance across vistas over time
+While harbor seals were observed swimming in Zone I, there were no harbor seals observed in the intertidal at that vista. More adult harbor seals were observed at the Spur Trail and Lot 3 vistas. Since both vistas overlook a shared intertidal space, individuals may be counted twice. 
+```{r fig.height = 5, echo = FALSE, message = FALSE, warning = FALSE}
+
+pin <- filter(pin, year(dtime) > 2020) %>%
+  # nice vista names
+  mutate(vista = case_when(vista == 'lot3' ~ 'Lot 3',
+                           vista == 'spur' ~ 'Spur Trail',
+                           vista == 'zone1' ~ 'Zone 1'))
+  
+
+pin_plot <- ggplot(data = pin,
+       mapping = aes(x = dtime, y = int_seal_adult, group = vista, color = vista)) + 
+  geom_point(size = 2) + 
+  scale_color_viridis(discrete = TRUE, begin = 0.3, end = 0.7) +
+  xlab('Survey date') + 
+  ylab('Adult seal abundance') + 
+  facet_wrap(~vista) +
+  ll_theme + 
+  theme(legend.position = 'none')
+
+plot(pin_plot)
+  
+```
+
+##### Harbor seal abundance vs tide level
+Since no harbor seals were observed in Zone 1, this analysis only includes data from the Spur Trail and Lot 3 vistas. 
+
+There were more seals hauled out during higher tide periods. 
+
+```{r fig.width = 5, fig.height = 3, echo = FALSE, message = FALSE, warning = FALSE}
+
+pin2 <- filter(pin, vista != "Zone 1")
+
+tide_plot <- ggplot(data = pin2,
+                    mapping = aes(x = predicted_ft, y = int_seal_adult, 
+                                  color = vista)) +
+  geom_point(size = 2) + 
+  scale_color_viridis(discrete = TRUE, begin = 0.3, end = 0.5) +
+  xlab('Predicted tide level (ft above MLLW)') + 
+  ylab('Adult seal abundance') + 
+  facet_wrap(~vista) +
+  ll_theme + 
+  theme(legend.position = 'none')
+
+plot(tide_plot)
+```
+
+#### Harbor seal abundance vs air temperature
+There was no relationship between air temperature and seal abundance across vistas. There is also fewer air temperature data available, so only 8 survey dates are considered in this analysis. 
+
+```{r fig.width = 5, fig.height = 3, echo = FALSE, message = FALSE, warning = FALSE}
+
+temp_plot <- ggplot(data = pin2,
+                    mapping = aes(x = sio_sst, y = int_seal_adult, 
+                                  color = vista)) +
+  geom_point(size = 2) + 
+  scale_color_viridis(discrete = TRUE, begin = 0.3, end = 0.5) +
+  xlab('Sea surface temperature (°C)') + 
+  ylab('Adult seal abundance') + 
+  facet_wrap(~vista) +
+  ll_theme + 
+  theme(legend.position = 'none')
+
+plot(temp_plot)
+```
