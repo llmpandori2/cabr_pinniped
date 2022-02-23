@@ -1,15 +1,13 @@
 ---
-title: "CABR Pinniped Monitoring Management Summary"
+title: "Cabrillo National Monument Seals and Sea Lion Park Management Briefing"
 author: "L. Pandori"
-date: "12/20/2021"
 output: html_document
 ---
 
-```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
 
 ##### load packages #####
-
 library(gt)        # nice tables
 library(viridis)   # color palette
 library(lubridate) # dates/times
@@ -32,87 +30,64 @@ ll_theme <- theme_bw() + theme(text = element_text(size = 12),
                                     axis.text.x = element_text(size = 12, 
                                                                angle = 45, 
                                                                hjust = 1))
+
 ```
 
 ### Introduction
-Cabrillo National Monument (CABR) is a unit of the National Park System located at the tip of Point Loma in San Diego, CA. Despite its small footprint (160 terrestrial acres), CABR attracts nearly one million visitors each year, 380,000 of which visited the coastal area of the park in 2020. Further, the c. 2.5 km stretch of shoreline along the Coastal Trail and rocky intertidal areas of the park are visited by both humans and pinnipeds (seals and sea lions), leading to potential conflict. Preliminary observations show an averatge of 25 adult seals and 8 pups were consistently observed in the Sea Cove area. Due to its value as both a habitat refuge and public resource, it is critical to monitor use patterns by pinnipeds and visitors at Cabrillo National Monument.
+
+Cabrillo National Monument (CABR) is a unit of the National Park System located at the tip of Point Loma in San Diego, CA. Despite its small footprint (160 terrestrial acres), the monument attracts nearly one million visitors each year, 380,000 of which visited the coastal area of the park in 2020. Further, the *c.* 2.5 km stretch of shoreline in the coastal area of the park is used by seals and sea lions. This results in potential conflicts between conservation of natural resources, visitors, and other users of the area. Due to its value as both a habitat refuge and public resource, it is critical to monitor use patterns by visitors, seals and sea lions at Cabrillo National Monument.
 
 ### Objectives
-Monitoring of pinnipeds will provide estimates of pinniped use and activities at three sites at Cabrillo National Monument. Specific monitoring objectives of the CABR pinniped monitoring program are to: 
-- Estimate juvenile and adult pinniped abundance 
-- Determine haul-out site and use preferences of pinnipeds
-- Determine if tide level or visitation affect the abundance of pinnipeds
 
-### Methods Overview
-California sea lions (Zalophus californianus) and harbor seals (Phoca vitulina) are the focal species of this sampling due to their high abundances and frequent haul-out behavior along southern California shores (Antonelis & Fiscus 1980). Volunteers in Parks (VIPs) conduct 10 minute observations of the numbers of seals and sea lions visible from three overlooks along the coastal area of the park (Zone 1, Spur Trail and Lot 3 overlooks). After conducting observations of pinnipeds, volunteers conduct 10 minute observations of the number of humans in the intertidal area. They record the time, estimated percent cloud cover, and subjective wind level (on a scale of 0-3) during surveys. The time of survey events is used to get the tide level, air temperature and water temperature from the National Oceanographic and Atmospheric Administration (NOAA) station at Scripps Pier in La Jolla. 
+The objective of this monitoring program is to provide estimates of seal, sea lion, and visitor use at three sites in the coastal area of Cabrillo National Monument from June 2021 thru January 2022. Specifically, this study: 
 
-### Preliminary Results
+(1) Document trends in seal, sea lion and visitor use over time
+(2) Identify preferred haul-out sites (places where seals and sea lions rest on land)
+(3) Explore relationships between tidal and weather conditions on seal and sea lion abundance
 
-#### Data collection
-Pinniped monitoring data was collected June - December 2021.
-NOAA weather data only available for dates June - September 2021.
-Tide level predictions available for all survey dates. 
+### Results
 
-```{r data availability table, echo = FALSE, message = FALSE, warning = FALSE}
+```{r data prep}
 
 # read in pinniped data
 pin <- read_csv('../data/pinniped_summary.csv')
 
-# make table by months
-pin %>%
-  filter(year(dtime) == 2021) %>%
-  # get unique combos of survey date, sst, temp and predicted tide lvl
-  select(dtime:predicted_ft) %>%
-  distinct() %>%
-  # get presence by month x year combo
-  mutate(month_yr = floor_date(dtime, unit = 'month')) %>%
-  group_by(month_yr) %>%
-  summarize(`Pinniped observations` = 'Yes',
-            `Air/sea temperature` = if_else(is.na(sio_air_temp), 'No', 'Yes'),
-            `Tide level` = if_else(is.na(predicted_ft), 'No', 'Yes')) %>%
-  distinct() %>%
-  ungroup() %>%
-  mutate(month_yr = substr(month_yr, 1,7)) %>%
-  rename(`Year-Month` = month_yr) %>%
-  gt()
+# get complete data without duplicates
+pin <- pin %>%
+          na.omit() %>%
+          distinct()
 
 ```
 
 #### Only harbor seals occupy the intertidal zone
-During the 20 surveys, No sea lions (adults or pups) were observed in the intertidal zone. One sea lion was observed swimming. No harbor seal pups were observed in the intertidal zone during the survey period (June - December 2021). Due to this finding, analyses that follow consider only adult harbor seals. 
 
-```{r totals of observations, echo = FALSE, message = FALSE, warning = FALSE}
+Over 26 surveys, only  surveys, only three sea lions were observed. Due to this finding, analyses that follow consider only adult harbor seals. 
 
-pin %>%
+```{r totals of observations}
+
+obs_table <- pin %>%
   select(vista:humans) %>%
+  # pivot longer to do calculations on rows
   pivot_longer(., cols = int_seal_adult:humans, names_to = 'obs_type') %>%
+  mutate(obs_type = case_when(grepl('lion', obs_type) ~ 'Sea lions',
+                              grepl('seal', obs_type) ~ 'Seals',
+                              TRUE ~ 'Visitors')) %>%
   group_by(vista, obs_type) %>%
+  # get sum of each type
   summarize(n = sum(value)) %>%
-  # nice names
+  # pivot wider into a table with vista along the columns and type in rows
+  pivot_wider(names_from = vista, values_from = n) %>%
   ungroup() %>%
-  mutate(obs_type = case_when(obs_type == 'humans' ~ 'Visitors',
-                              obs_type == 'int_lion_adult' ~ 
-                                'Intertidal Sea Lion Adult',
-                              obs_type == 'int_lion_pup' ~ 
-                                'Intertidal Sea Lion Pup',
-                              obs_type == 'int_seal_adult' ~ 
-                                'Intertidal Seal Adult',
-                              obs_type == 'int_seal_pup' ~ 'Interitdal Seal Pup',
-                              obs_type == 'swim_lion' ~ 'Swimming Sea Lion',
-                              obs_type == 'swim_seal' ~ 'Swimming Seal'),
-         vista = case_when(vista == 'lot3' ~ 'Lot 3',
-                           vista == 'spur' ~ 'Spur Trail',
-                           vista == 'zone1' ~ 'Zone 1')) %>%
-  rename(Vista = vista, `Observation type` = obs_type, Count = n) %>%
-  gt() %>%
-  tab_header(title = 'Observation Totals by Vista & Category') %>%
-  data_color(
-    columns = Count,
-    colors = scales::col_numeric(
-      palette = c('white', 'orange'),
-      domain = c(0, 200)
-    )
-  )
+  # nice names
+  rename(`Zone 1` = zone1, `Spur Trail` = spur, `Lot 3` = lot3, `Observation type` = obs_type) %>%
+  # reorder from S to N
+  select(`Observation type` ,`Zone 1`, `Spur Trail`, `Lot 3`)
+
+
+
+  gt(obs_table)
+
+length(unique(pin$date))
   
 
 ```
@@ -183,3 +158,8 @@ temp_plot <- ggplot(data = pin2,
 
 plot(temp_plot)
 ```
+
+
+### Methods Overview
+
+California sea lions (*Zalophus californianus*) and harbor seals (*Phoca vitulina*) are the focal species of this sampling due to their high abundances and frequent haul-out, or land resting, behavior along southern California shores (Antonelis & Fiscus 1980). Volunteers in Parks (VIPs) conduct 10 minute observations of the numbers of seals and sea lions visible from three overlooks along the coastal area of the park (Zone 1, Spur Trail and Lot 3 overlooks). After conducting seal and sea lion observations, volunteers conduct 10 minute observations of the number of humans in the intertidal area. They record the time, estimated percent cloud cover, and subjective wind level (on a scale of 0-3) during surveys. The time of survey events is used to get the tide level, air temperature and water temperature from the National Oceanographic and Atmospheric Administration (NOAA) station at Scripps Pier in La Jolla. 
