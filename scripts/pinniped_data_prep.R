@@ -18,9 +18,9 @@ library(tidyverse) # life
 # data pulled from site below - not available on rnoaa b/c data not qa/qc'ed
 # https://tidesandcurrents.noaa.gov/waterlevels.html?id=9410170&units=standard&bdate=20190101&edate=20191231&timezone=GMT&datum=MLLW&interval=h&action=data
 
-tide_data <- list.files(path = '../data/abiotic/sd_tide/',
+tide_data <- list.files(path = './data/abiotic/sd_tide/',
                         pattern = '*.csv') %>%
-  map(~ read_csv(file.path('../data/abiotic/sd_tide/', .))) %>%
+  map(~ read_csv(file.path('./data/abiotic/sd_tide/', .))) %>%
   reduce(rbind)
 
 tide_data <- tide_data %>%
@@ -31,26 +31,26 @@ tide_data <- tide_data %>%
                                   tzone = 'UTC'), tzone = 'US/Pacific')) %>%
   select(dtime, predicted_ft, verified_ft)
 
-write_csv(tide_data, '../data/abiotic/sd_bay_tides_assembled.csv')
+write_csv(tide_data, './data/abiotic/sd_bay_tides_assembled.csv')
 
 ##### sio pier water temp data #####
 # station website
 # https://www.ndbc.noaa.gov/station_page.php?station=ljac1
 
 # pull data 2021
-years <- 2021
+years <- c(2021, 2022)
 
 for(i in 1:length(years)) {
   lj <- buoy(buoyid = 'LJAC1', dataset = 'stdmet', year = years[i])$data
-  write_csv(lj, paste('../data/abiotic/sio_pier/pier', years[i], '.csv', sep = ''))
+  write_csv(lj, paste('./data/abiotic/sio_pier/pier', years[i], '.csv', sep = ''))
 }
 
 remove(lj)
 
 # assemble data
-pier_data <- list.files(path = '../data/abiotic/sio_pier/',
+pier_data <- list.files(path = './data/abiotic/sio_pier/',
                         pattern = '*.csv') %>%
-  map(~ read_csv(file.path('../data/abiotic/sio_pier/', .))) %>%
+  map(~ read_csv(file.path('./data/abiotic/sio_pier/', .))) %>%
   reduce(rbind)
 
 # tidy
@@ -67,7 +67,7 @@ pier_data <- pier_data %>%
 
 
 # write csv
-write_csv(pier_data, '../data/abiotic/sio_pier_assembled.csv')
+write_csv(pier_data, './data/abiotic/sio_pier_assembled.csv')
 
 ##### North Island Naval Air Station Air Temp Data #####
 for (i in 1:length(years)){
@@ -76,13 +76,15 @@ for (i in 1:length(years)){
                  year = years[i])
   # write a csv with a file name that contains the year 
   # note: change the part of the path before the first "/" to desired file location
-  write_csv(weather, paste('../data/abiotic/navy_north_island_air/SD_Intl_Airport_', years[i], '.csv', sep= ''))
+  write_csv(weather, paste('./data/abiotic/navy_north_island_air/SD_Intl_Airport_', years[i], '.csv', sep= ''))
 }
 
+remove(weather)
+
 # assemble data
-air_data <- list.files(path = '../data/abiotic/navy_north_island_air/',
+air_data <- list.files(path = './data/abiotic/navy_north_island_air/',
                        pattern = '*.csv') %>%
-  map(~ read_csv(file.path('../data/abiotic/navy_north_island_air/', .))) %>%
+  map(~ read_csv(file.path('./data/abiotic/navy_north_island_air/', .))) %>%
   reduce(rbind)
 
 air_data <- air_data %>%
@@ -100,22 +102,24 @@ air_data <- air_data %>%
   summarize(air_temp = mean(air_temp))
 
 write_csv(air_data, '../data/abiotic/sd_airport_air_data.csv')
-remove(weather, years, i)
 
+remove(years, i)
 
-pin <- read_excel('../data/Pinnniped_Monitoring_CABR_Data2.xlsx', 
+##### join w pinniped data #####
+
+# read pinniped data
+pin <- read_excel("data/Pinnniped_Monitoring_CABR_Data2.xlsx", 
                   col_types = c("date", "text", "numeric", 
-                                "numeric", "text", "skip", "date", 
+                                "numeric", "text", "numeric", "date", 
                                 "numeric", "numeric", "numeric", 
                                 "numeric", "numeric", "numeric", 
                                 "numeric", "text"))
 
-# tidy pinniped
+# tidy
 pin <- pin %>%
-  select(vista:humans, cloud_cover, wind) %>%
   # make time nearest hr
   mutate(dtime = round_date(datetime, unit = 'hour')) %>%
-  select(-datetime)
+  select(-datetime, -notes)
 
 # join with tide + sio temp data
 pin <- pin %>%
@@ -125,4 +129,5 @@ pin <- pin %>%
 # remove other data
 remove(air_data, pier_data, tide_data)
 
-write.csv(pin, '../data/pinniped_summary.csv')
+write.csv(pin, './data/pinniped_summary.csv')
+
