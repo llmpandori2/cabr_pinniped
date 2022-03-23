@@ -1,6 +1,6 @@
 ---
-title: 'Cabrillo National Monument: Seal and Sea Lion Park Management Briefing'
-author: "L. Pandori"
+title: 'Seal and Sea Lion Management Briefing'
+author: "L. Pandori - Cabrillo National Monument"
 output: html_document
 ---
 
