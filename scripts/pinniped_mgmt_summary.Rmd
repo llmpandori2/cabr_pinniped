@@ -54,7 +54,7 @@ This program provides estimates of seal, sea lion, and visitor use at two sites 
 
 ### Results
 
-The average number of visitors per survey is higher at the Zone 1 Vista than at the Spur Trail Vista. Alternately, the average number of seals is higher at the Spur Trail Vista than the Zone 1 Vista. Only `r sum(pin$int_lion_adult) + sum(pin$swim_lion)` sea lions were observed during `r length(unique(pin$date))`` surveys conducted between June 2021 and January 2022. Since there were so few sightings, the following charts show only seal abundance over time and seal haul-out (land rest) site preference. 
+The average number of visitors per survey is higher at the Zone 1 Vista than at the Spur Trail Vista. Alternately, the average number of seals is higher at the Spur Trail Vista than the Zone 1 Vista. Only `r sum(pin$int_lion_adult) + sum(pin$swim_lion)` sea lions were observed during `r length(unique(pin$date))` surveys conducted between June 2021 and February 2022. Since there were so few sightings, the following charts show only seal abundance over time and seal haul-out (land rest) site preference. 
 
 ```{r totals of observations}
 
